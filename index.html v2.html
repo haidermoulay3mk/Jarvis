@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <title>JARVIS</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #root { width: 100%; height: 100%; }
+    body {
+      background: #000;
+      color: #f5f5f5;
+      font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #262626; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
+    const lucide = window.lucide;
+    
+    // Icons - use lucide's built-in
+    const Home = lucide.Home;
+    const Target = lucide.Target;
+    const Languages = lucide.Languages;
+    const Dumbbell = lucide.Dumbbell;
+    const Apple = lucide.Apple;
+    const Activity = lucide.Activity;
+    const CreditCard = lucide.CreditCard;
+    const Bot = lucide.MessageCircle;
+    const Check = lucide.Check;
+    const Plus = lucide.Plus;
+    const Minus = lucide.Minus;
+    const Send = lucide.Send;
+    const Mic = lucide.Mic;
+    const MicOff = lucide.MicOff;
+    const Droplet = lucide.Droplet;
+    const Heart = lucide.Heart;
+    const BookOpen = lucide.BookOpen;
+    const Code2 = lucide.Code;
+    const Brain = lucide.Brain;
+    const Trophy = lucide.Trophy;
+    const Flame = lucide.Flame;
+    const Zap = lucide.Zap;
+    const ChevronRight = lucide.ChevronRight;
+    const ChevronDown = lucide.ChevronDown;
+    const Calendar = lucide.Calendar;
+    const ExternalLink = lucide.ExternalLink;
+    const Trash2 = lucide.Trash;
+    const MoonStar = lucide.Moon;
+    const BedDouble = lucide.Moon;
+    const Sparkles = lucide.Sparkles;
+    const Cpu = lucide.Cpu;
+    const Briefcase = lucide.Briefcase;
+    const Camera = lucide.Camera;
+    const Crown = lucide.Crown;
+    const Award = lucide.Award;
+    const Loader2 = lucide.Loader;
+
+    const RANKS = [
+      { name: 'Recruit', min: 0, color: '#737373' },
+      { name: 'Initiate', min: 500, color: '#a3a3a3' },
+      { name: 'Operative', min: 1500, color: '#fbbf24' },
+      { name: 'Specialist', min: 3500, color: '#f59e0b' },
+      { name: 'Agent', min: 7000, color: '#f97316' },
+      { name: 'Elite Agent', min: 12000, color: '#ea580c' },
+      { name: 'Commander', min: 20000, color: '#dc2626' },
+      { name: 'Director', min: 35000, color: '#b91c1c' },
+      { name: 'Master', min: 60000, color: '#9333ea' },
+      { name: 'JARVIS', min: 100000, color: '#06b6d4' },
+    ];
+
+    const getRank = (exp) => {
+      let current = RANKS[0];
+      let next = RANKS[1];
+      for (let i = 0; i < RANKS.length; i++) {
+        if (exp >= RANKS[i].min) {
+          current = RANKS[i];
+          next = RANKS[i + 1] || null;
+        }
+      }
+      return { current, next };
+    };
+
+    const todayKey = () => new Date().toISOString().split('T')[0];
+
+    const storage = {
+      get(key, fallback = null) {
+        try {
+          const v = localStorage.getItem(key);
+          return v ? JSON.parse(v) : fallback;
+        } catch {
+          return fallback;
+        }
+      },
+      set(key, value) {
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+        } catch (e) {
+          console.error('Storage set failed:', key, e);
+        }
+      },
+    };
+
+    const Card = ({ children, className = '', ...props }) => (
+      <div className={`bg-neutral-950/40 border border-neutral-800/60 rounded-lg ${className}`} {...props}>
+        {children}
+      </div>
+    );
+
+    const Checkbox = ({ checked, onToggle, label, link, days, exp, color = '#fbbf24' }) => (
+      <div className="group flex items-start gap-3 py-3 px-3 rounded-md hover:bg-white/[0.02] transition-colors border border-transparent hover:border-white/[0.05]">
+        <button onClick={onToggle} className="mt-0.5 flex-shrink-0 transition-transform active:scale-90">
+          {checked ? (
+            <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ background: color }}>
+              <Check size={13} strokeWidth={3} className="text-black" />
+            </div>
+          ) : (
+            <div className="w-5 h-5 rounded-md border-2 border-neutral-700 group-hover:border-neutral-500 transition-colors" />
+          )}
+        </button>
+        <div className="flex-1 min-w-0">
+          <div className={`text-[14px] leading-relaxed ${checked ? 'text-neutral-600 line-through' : 'text-neutral-200'}`}>
+            {label}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+            {link && (
+              <a href={link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-neutral-500 hover:text-amber-400 transition-colors font-mono">
+                <ExternalLink size={10} />
+                open link
+              </a>
+            )}
+            {days > 0 && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-neutral-500 font-mono">
+                <Calendar size={10} />
+                {days}d
+              </span>
+            )}
+            {exp > 0 && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-mono" style={{ color: checked ? '#525252' : color }}>
+                <Zap size={10} />
+                +{exp} EXP
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+
+    // Simple Dashboard
+    const Dashboard = ({ exp, streak, tasksCompleted, totalTasks, todayStats, onNavigate }) => {
+      const { current } = getRank(exp);
+      const completionPct = totalTasks > 0 ? (tasksCompleted / totalTasks) * 100 : 0;
+
+      return (
+        <div className="space-y-6">
+          <Card className="p-6">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-500 mb-2">Rank</div>
+            <div className="text-3xl font-light mb-4" style={{ color: current.color }}>{current.name}</div>
+            <div className="text-3xl font-light text-amber-400 font-mono">{exp.toLocaleString()} EXP</div>
+          </Card>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Card className="p-4">
+              <div className="text-[10px] uppercase tracking-wider text-neutral-500 mb-1">Streak</div>
+              <div className="text-2xl font-light text-neutral-100 font-mono">{streak}</div>
+            </Card>
+            <Card className="p-4">
+              <div className="text-[10px] uppercase tracking-wider text-neutral-500 mb-1">Progress</div>
+              <div className="text-2xl font-light text-neutral-100 font-mono">{Math.round(completionPct)}%</div>
+            </Card>
+          </div>
+
+          <Card className="p-5">
+            <div className="text-[11px] uppercase tracking-wider text-neutral-400 mb-4">Today</div>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between"><span>Water</span><span className="font-mono">{todayStats.water}/8</span></div>
+              <div className="flex justify-between"><span>Prayers</span><span className="font-mono">{todayStats.prayers}/5</span></div>
+            </div>
+          </Card>
+        </div>
+      );
+    };
+
+    const HabitsView = ({ water, setWater, prayers, togglePrayer, addExp }) => {
+      return (
+        <div className="space-y-4">
+          <h2 className="text-2xl font-light text-neutral-100">Habits</h2>
+          
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-[12px] uppercase tracking-wider text-neutral-300">Water</span>
+              <span className="text-sm font-mono text-cyan-400">{water}/8</span>
+            </div>
+            <div className="flex gap-1.5 mb-4">
+              {Array.from({ length: 8 }, (_, i) => (
+                <button key={i} onClick={() => {
+                  if (i + 1 > water) addExp(5);
+                  setWater(i + 1 === water ? i : i + 1);
+                }}
+                  className={`flex-1 h-10 rounded transition-all ${i < water ? 'bg-cyan-500/30 border border-cyan-500/50' : 'border border-neutral-800'}`}
+                />
+              ))}
+            </div>
+          </Card>
+
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-[12px] uppercase tracking-wider text-neutral-300">Prayers</span>
+              <span className="text-sm font-mono text-emerald-400">{Object.values(prayers).filter(Boolean).length}/5</span>
+            </div>
+            <div className="grid grid-cols-5 gap-2">
+              {['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].map(p => (
+                <button key={p} onClick={() => togglePrayer(p)}
+                  className={`py-3 rounded-md text-[11px] uppercase transition-all ${prayers[p] ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-300' : 'border border-neutral-800'}`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          </Card>
+        </div>
+      );
+    };
+
+    // Main App
+    const App = () => {
+      const [view, setView] = useState('dashboard');
+      const [loaded, setLoaded] = useState(false);
+      const [exp, setExp] = useState(0);
+      const [streak, setStreak] = useState(0);
+      const [water, setWaterState] = useState(0);
+      const [prayers, setPrayers] = useState({});
+
+      useEffect(() => {
+        const data = {
+          exp: storage.get('jarvis:exp', 0),
+          streak: storage.get('jarvis:streak', 0),
+          water: storage.get('jarvis:water', 0),
+          prayers: storage.get('jarvis:prayers', {}),
+        };
+        setExp(data.exp);
+        setStreak(data.streak);
+        setWaterState(data.water);
+        setPrayers(data.prayers);
+        setLoaded(true);
+      }, []);
+
+      const addExp = useCallback((amount) => {
+        setExp(prev => {
+          const next = prev + amount;
+          storage.set('jarvis:exp', next);
+          return next;
+        });
+      }, []);
+
+      const setWater = useCallback((v) => {
+        setWaterState(v);
+        storage.set('jarvis:water', v);
+      }, []);
+
+      const togglePrayer = useCallback((p) => {
+        setPrayers(prev => {
+          const next = { ...prev, [p]: !prev[p] };
+          if (next[p]) addExp(10); else addExp(-10);
+          storage.set('jarvis:prayers', next);
+          return next;
+        });
+      }, [addExp]);
+
+      if (!loaded) return <div className="min-h-screen bg-black flex items-center justify-center"><Loader2 className="text-amber-500 animate-spin" size={28} /></div>;
+
+      const todayStats = {
+        water,
+        prayers: Object.values(prayers).filter(Boolean).length,
+      };
+
+      return (
+        <div className="min-h-screen bg-black text-neutral-100">
+          <div className="flex min-h-screen">
+            <main className="flex-1 pb-20 md:pb-6">
+              <header className="md:hidden sticky top-0 z-20 bg-black/80 border-b border-neutral-900 px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={15} className="text-amber-400" />
+                  <span className="text-[14px] font-medium">JARVIS</span>
+                </div>
+                <div className="text-[11px] font-mono text-amber-400">{exp.toLocaleString()} EXP</div>
+              </header>
+
+              <div className="max-w-2xl mx-auto px-4 py-5">
+                {view === 'dashboard' && <Dashboard exp={exp} streak={streak} tasksCompleted={0} totalTasks={1} todayStats={todayStats} onNavigate={setView} />}
+                {view === 'habits' && <HabitsView water={water} setWater={setWater} prayers={prayers} togglePrayer={togglePrayer} addExp={addExp} />}
+              </div>
+            </main>
+          </div>
+
+          <nav className="md:hidden fixed bottom-0 inset-x-0 bg-black/95 border-t border-neutral-900 px-1 py-1.5 flex justify-around z-30">
+            {[
+              ['dashboard', 'Home', Home],
+              ['habits', 'Habits', Heart],
+            ].map(([id, label, Icon]) => (
+              <button key={id} onClick={() => setView(id)}
+                className={`flex flex-col items-center justify-center px-2 py-1.5 text-[9px] ${view === id ? 'text-amber-400' : 'text-neutral-500'}`}
+              >
+                <Icon size={16} />
+                <span className="mt-0.5">{label}</span>
+              </button>
+            ))}
+          </nav>
+        </div>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
